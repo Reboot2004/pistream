@@ -1,0 +1,86 @@
+{
+    "name": "pistream",
+    "version": "1.0.0",
+    "description": "Lightweight OBS alternative for ARM64/Raspberry Pi - Stream to Twitch, YouTube, and custom RTMP servers",
+    "main": "dist/main/main.js",
+    "author": "Your Name",
+    "license": "MIT",
+    "scripts": {
+        "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
+        "dev:renderer": "vite",
+        "dev:electron": "tsc -p tsconfig.main.json && electron .",
+        "build": "npm run build:renderer && npm run build:main",
+        "build:renderer": "vite build",
+        "build:main": "tsc -p tsconfig.main.json",
+        "build:arm64": "npm run build && electron-builder --linux --arm64",
+        "build:x64": "npm run build && electron-builder --linux --x64",
+        "build:all": "npm run build && electron-builder --linux --arm64 --x64",
+        "package": "electron-builder",
+        "start": "electron ."
+    },
+    "dependencies": {
+        "fluent-ffmpeg": "^2.1.2",
+        "zustand": "^4.4.7",
+        "electron-store": "^8.1.0",
+        "socket.io-client": "^4.6.1"
+    },
+    "devDependencies": {
+        "@types/fluent-ffmpeg": "^2.1.24",
+        "@types/node": "^20.10.0",
+        "@types/react": "^18.2.43",
+        "@types/react-dom": "^18.2.17",
+        "@vitejs/plugin-react": "^4.2.1",
+        "autoprefixer": "^10.4.16",
+        "concurrently": "^8.2.2",
+        "electron": "^28.0.0",
+        "electron-builder": "^24.9.1",
+        "postcss": "^8.4.32",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "tailwindcss": "^3.3.6",
+        "typescript": "^5.3.3",
+        "vite": "^5.0.8",
+        "vite-plugin-electron": "^0.28.0"
+    },
+    "build": {
+        "appId": "com.pistream.app",
+        "productName": "PiStream",
+        "directories": {
+            "output": "release",
+            "buildResources": "build"
+        },
+        "files": [
+            "dist/**/*",
+            "package.json"
+        ],
+        "linux": {
+            "target": [
+                {
+                    "target": "deb",
+                    "arch": [
+                        "arm64",
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "arm64",
+                        "x64"
+                    ]
+                }
+            ],
+            "category": "Video",
+            "icon": "build/icon.png"
+        },
+        "extraResources": [
+            {
+                "from": "resources",
+                "to": "resources",
+                "filter": [
+                    "**/*"
+                ]
+            }
+        ]
+    }
+}

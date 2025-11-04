@@ -1,5 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+
+// Use CommonJS export for Node compatibility
+module.exports = {
     content: [
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",

@@ -9,7 +9,8 @@ let mainWindow: BrowserWindow | null = null;
 let ffmpegService: FFmpegService;
 let streamManager: StreamManager;
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+import fs from 'fs';
+const isDevEnv = process.env.NODE_ENV === 'development';
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -26,11 +27,32 @@ function createWindow() {
         backgroundColor: '#1a1a1a',
     });
 
-    if (isDev) {
-        mainWindow.loadURL('http://localhost:3000');
-        mainWindow.webContents.openDevTools();
+    // Prefer loading built files unless explicitly running in dev mode
+    const rendererIndex = path.join(__dirname, '../renderer/index.html');
+    const hasBuiltRenderer = fs.existsSync(rendererIndex);
+
+    if (isDevEnv && process.env.VITE_DEV_SERVER_URL) {
+        // Explicit dev server URL provided (npm run dev scenario)
+        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+    } else if (hasBuiltRenderer) {
+        // Load the built renderer (production/start:prod scenario)
+        mainWindow.loadFile(rendererIndex);
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+        // Fallback to dev server if available, otherwise show a helpful error page
+        const devUrl = 'http://localhost:3000';
+        mainWindow.loadURL(devUrl).catch(() => {
+            // If dev server is not running, display a simple message
+            const html = `<!doctype html><html><body style="background:#111;color:#eee;font:14px sans-serif;padding:24px;">
+                    <h2>Renderer not found</h2>
+                    <p>No built files detected at <code>${rendererIndex}</code> and Vite dev server not running at <code>${devUrl}</code>.</p>
+                    <ol>
+                        <li>For production: run <code>npm run build</code> then <code>npm run start:prod</code></li>
+                        <li>For development: run <code>npm run dev</code></li>
+                    </ol>
+                </body></html>`;
+            mainWindow!.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+        });
     }
 
     mainWindow.on('closed', () => {

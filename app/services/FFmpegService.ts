@@ -160,6 +160,20 @@ export class FFmpegService {
     }
 
     /**
+     * Check whether a given encoder is available in this ffmpeg build
+     */
+    isEncoderAvailable(encoder: string): boolean {
+        if (!encoder) return false;
+        try {
+            const encodersOutput = execSync('ffmpeg -encoders', { encoding: 'utf8' });
+            return encodersOutput.includes(encoder);
+        } catch (err) {
+            // If ffmpeg isn't available or the command fails, assume unavailable
+            return false;
+        }
+    }
+
+    /**
      * Get encoding preset based on platform
      */
     getEncodingPreset(): string {
@@ -207,6 +221,18 @@ export class FFmpegService {
 
         // Video encoding
         const codec = (config.videoCodec && config.videoCodec !== 'auto') ? config.videoCodec : this.getVideoCodec();
+
+        // If user explicitly selected a codec, verify it's available before
+        // starting ffmpeg. This prevents launching ffmpeg with an unsupported
+        // encoder (which previously resulted in runtime errors).
+        if (config.videoCodec && config.videoCodec !== 'auto') {
+            if (!this.isEncoderAvailable(codec)) {
+                // Throwing here lets StreamManager catch and return an error to the UI
+                throw new Error(`Requested video codec '${codec}' is not available in this ffmpeg build. ` +
+                    `Run 'ffmpeg -encoders | grep ${codec}' to check available encoders, or choose 'Auto' in Settings.`);
+            }
+        }
+
         command.videoCodec(codec)
             .videoBitrate(config.videoBitrate)
             .size(config.resolution)

@@ -18,6 +18,7 @@ export interface StreamSettings {
     fps: number;
     videoBitrate: string;
     audioBitrate: string;
+    videoCodec?: string;
 }
 
 interface StreamStore {
@@ -43,6 +44,7 @@ const defaultSettings: StreamSettings = {
     fps: 30,
     videoBitrate: '2500k',
     audioBitrate: '128k',
+    videoCodec: 'auto',
 };
 
 export const useStreamStore = create<StreamStore>((set) => ({

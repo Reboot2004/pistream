@@ -13,6 +13,7 @@ export interface StreamConfig {
     fps: number;
     videoBitrate: string;
     audioBitrate: string;
+    videoCodec?: string;
 }
 
 export interface RecordConfig {
@@ -23,6 +24,7 @@ export interface RecordConfig {
     fps: number;
     videoBitrate: string;
     audioBitrate: string;
+    videoCodec?: string;
 }
 
 export interface StreamStatus {
@@ -70,6 +72,7 @@ export class StreamManager {
             audioBitrate: config.audioBitrate,
             resolution: config.resolution,
             fps: config.fps,
+            videoCodec: (config as any).videoCodec,
         };
 
         this.streamProcess = this.ffmpegService.createStreamCommand(streamConfig);

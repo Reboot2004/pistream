@@ -146,6 +146,22 @@ export default function Settings({ onClose }: SettingsProps) {
                                         <option value="96k">96 kbps</option>
                                     </select>
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Video Codec</label>
+                                    <select
+                                        value={localSettings.videoCodec || 'auto'}
+                                        onChange={(e) => setLocalSettings({ ...localSettings, videoCodec: e.target.value })}
+                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="auto">Auto (recommended)</option>
+                                        <option value="libx264">libx264 (software)</option>
+                                        <option value="h264_omx">h264_omx (Raspberry Pi legacy)</option>
+                                        <option value="h264_v4l2m2m">h264_v4l2m2m (Pi4+)</option>
+                                        <option value="h264_vaapi">h264_vaapi (Intel/VAAPI)</option>
+                                        <option value="h264_nvenc">h264_nvenc (NVIDIA)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 

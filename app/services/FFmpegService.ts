@@ -1,5 +1,5 @@
 import ffmpeg from 'fluent-ffmpeg';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
 
@@ -76,6 +76,8 @@ export class FFmpegService {
                 });
             } catch (error) {
                 console.error('Could not detect audio devices:', error);
+                console.error('If you are on Debian/Ubuntu or WSL, install pactl (PulseAudio utils): sudo apt-get install -y pulseaudio-utils');
+                console.error('If your system uses PipeWire, ensure pipewire-pulse is installed and pactl is available.');
                 return [
                     {
                         id: 'default',
@@ -86,6 +88,46 @@ export class FFmpegService {
             }
         }
 
+        if (platform === 'win32') {
+            try {
+                // Use ffmpeg to list dshow devices. Output appears on stderr.
+                const { stderr } = await execAsync('ffmpeg -list_devices true -f dshow -i dummy 2>&1');
+                const lines = (stderr || '').split('\n');
+                const devices: AudioDevice[] = [];
+
+                let inAudioSection = false;
+                for (const raw of lines) {
+                    const line = raw.trim();
+                    if (!line) continue;
+                    if (line.includes('DirectShow audio devices')) {
+                        inAudioSection = true;
+                        continue;
+                    }
+                    if (inAudioSection) {
+                        // Device lines are like: "Microphone (High Definition Audio Device)"
+                        const m = line.match(/"(.+)"/);
+                        if (m && m[1]) {
+                            const name = m[1];
+                            devices.push({ id: name, name, type: 'input' });
+                        } else if (line.startsWith('"') && line.endsWith('"')) {
+                            const name = line.slice(1, -1);
+                            devices.push({ id: name, name, type: 'input' });
+                        }
+                    }
+                }
+
+                if (devices.length > 0) return devices;
+            } catch (err) {
+                console.error('Failed to list Windows audio devices via ffmpeg:', err);
+                // Fall through to default
+            }
+
+            return [
+                { id: 'default', name: 'Default Microphone', type: 'input' }
+            ];
+        }
+
+        // Other platforms: return an empty list by default
         return [];
     }
 
@@ -93,11 +135,27 @@ export class FFmpegService {
      * Get optimal video codec for the platform
      */
     getVideoCodec(): string {
-        if (this.isARM) {
-            // Try hardware encoding on Raspberry Pi
-            // h264_omx for older Pi, h264_v4l2m2m for Pi 4+
-            return 'h264_omx';
+        // Prefer platform-specific/hardware encoders when available, but fall
+        // back to libx264 if the requested encoder isn't present in ffmpeg.
+        try {
+            const encodersOutput = execSync('ffmpeg -encoders', { encoding: 'utf8' });
+
+            const preferredARM = ['h264_omx', 'h264_v4l2m2m', 'h264_vaapi', 'libx264'];
+            const preferredGeneric = ['libx264', 'h264_vaapi', 'h264_nvenc'];
+
+            const list = this.isARM ? preferredARM : preferredGeneric;
+
+            for (const codec of list) {
+                if (encodersOutput.includes(codec)) {
+                    return codec;
+                }
+            }
+        } catch (err) {
+            // If ffmpeg isn't available or the command fails, fall through and
+            // return a safe default.
+            // detectFFmpeg already logs detection at startup; ignore here.
         }
+
         return 'libx264';
     }
 
@@ -123,6 +181,7 @@ export class FFmpegService {
         audioBitrate: string;
         resolution: string;
         fps: number;
+        videoCodec?: string;
     }): ffmpeg.FfmpegCommand {
         const command = ffmpeg();
 
@@ -134,12 +193,21 @@ export class FFmpegService {
 
         // Audio input (if specified)
         if (config.audioDevice) {
-            command.input(config.audioDevice)
-                .inputFormat('pulse');
+            if (os.platform() === 'win32') {
+                // On Windows, use dshow and specify audio=<device name>
+                // ffmpeg expects the device name quoted; fluent-ffmpeg will handle
+                // the argument as a single input string.
+                command.input(`audio=${config.audioDevice}`)
+                    .inputFormat('dshow');
+            } else {
+                command.input(config.audioDevice)
+                    .inputFormat('pulse');
+            }
         }
 
         // Video encoding
-        command.videoCodec(this.getVideoCodec())
+        const codec = (config.videoCodec && config.videoCodec !== 'auto') ? config.videoCodec : this.getVideoCodec();
+        command.videoCodec(codec)
             .videoBitrate(config.videoBitrate)
             .size(config.resolution)
             .fps(config.fps)
@@ -175,6 +243,7 @@ export class FFmpegService {
         audioBitrate: string;
         resolution: string;
         fps: number;
+        videoCodec?: string;
     }): ffmpeg.FfmpegCommand {
         const command = ffmpeg();
 
@@ -186,12 +255,18 @@ export class FFmpegService {
 
         // Audio input
         if (config.audioDevice) {
-            command.input(config.audioDevice)
-                .inputFormat('pulse');
+            if (os.platform() === 'win32') {
+                command.input(`audio=${config.audioDevice}`)
+                    .inputFormat('dshow');
+            } else {
+                command.input(config.audioDevice)
+                    .inputFormat('pulse');
+            }
         }
 
         // Encoding
-        command.videoCodec(this.getVideoCodec())
+        const codec = (config.videoCodec && config.videoCodec !== 'auto') ? config.videoCodec : this.getVideoCodec();
+        command.videoCodec(codec)
             .videoBitrate(config.videoBitrate)
             .size(config.resolution)
             .fps(config.fps)

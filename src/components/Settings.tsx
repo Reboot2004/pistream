@@ -162,6 +162,19 @@ export default function Settings({ onClose }: SettingsProps) {
                                         <option value="h264_nvenc">h264_nvenc (NVIDIA)</option>
                                     </select>
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Recording Format</label>
+                                    <select
+                                        value={localSettings.recordingFormat || 'auto'}
+                                        onChange={(e) => setLocalSettings({ ...localSettings, recordingFormat: e.target.value as any })}
+                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="auto">Auto (platform default)</option>
+                                        <option value="mp4">MP4</option>
+                                        <option value="webm">WebM</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 

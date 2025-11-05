@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, desktopCapturer } from 'electron';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Sources
     getDisplays: () => ipcRenderer.invoke('sources:get-displays'),
     getAudioDevices: () => ipcRenderer.invoke('sources:get-audio-devices'),
+    // Desktop capture sources (screens/windows)
+    getDesktopSources: (opts?: any) => desktopCapturer.getSources(opts || { types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } }),
 
     // Settings
     getSetting: (key: string) => ipcRenderer.invoke('settings:get', key),
@@ -45,6 +47,7 @@ export interface ElectronAPI {
     getAllSettings: () => Promise<any>;
     getSystemInfo: () => Promise<any>;
     showSaveDialog: (defaultPath?: string) => Promise<{ canceled: boolean; filePath?: string | undefined }>;
+    getDesktopSources: (opts?: any) => Promise<Electron.DesktopCapturerSource[]>;
 }
 
 declare global {

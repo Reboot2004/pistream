@@ -132,10 +132,11 @@ export class StreamManager {
             throw new Error('Recording already running');
         }
 
-        // Ensure output directory exists
-        const outputDir = path.dirname(config.outputPath);
-        if (!outputDir) {
-            config.outputPath = path.join(os.homedir(), 'Videos', `recording-${Date.now()}.mp4`);
+        // Ensure output directory exists; if not provided, pick a sensible default
+        const outputDir = path.dirname(config.outputPath || '');
+        if (!config.outputPath || outputDir === '.' || outputDir === '') {
+            const ext = os.platform() === 'linux' ? 'webm' : 'mp4';
+            config.outputPath = path.join(os.homedir(), 'Videos', `recording-${Date.now()}.${ext}`);
         }
 
         this.recordProcess = this.ffmpegService.createRecordCommand(config);

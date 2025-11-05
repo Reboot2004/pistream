@@ -290,8 +290,48 @@ export class FFmpegService {
             }
         }
 
-        // Encoding
+        // Encoding / container selection based on output extension
+        const outPath = (config.outputPath || '').toLowerCase();
+        let chosenCodec: string | undefined = undefined;
+        if (outPath.endsWith('.webm')) {
+            // For webm prefer VP8/VP9 and Opus audio
+            // Respect user-selected codec if provided and available
+            if (config.videoCodec && config.videoCodec !== 'auto') {
+                if (!this.isEncoderAvailable(config.videoCodec)) {
+                    throw new Error(`Requested video codec '${config.videoCodec}' is not available in this ffmpeg build.`);
+                }
+                chosenCodec = config.videoCodec;
+            } else {
+                // Prefer libvpx-vp9, then libvpx
+                if (this.isEncoderAvailable('libvpx-vp9')) chosenCodec = 'libvpx-vp9';
+                else if (this.isEncoderAvailable('libvpx')) chosenCodec = 'libvpx';
+                else chosenCodec = this.getVideoCodec();
+            }
+
+            command.videoCodec(chosenCodec)
+                .videoBitrate(config.videoBitrate)
+                .size(config.resolution)
+                .fps(config.fps)
+                .addOption('-pix_fmt', 'yuv420p');
+
+            if (config.audioBitrate) {
+                // Use Opus if available
+                if (this.isEncoderAvailable('libopus')) {
+                    command.audioCodec('libopus').audioBitrate(config.audioBitrate);
+                } else {
+                    command.audioCodec('aac').audioBitrate(config.audioBitrate);
+                }
+            }
+
+            command.format('webm').output(config.outputPath);
+            return command;
+        }
+
+        // Default to mp4 behavior
         const codec = (config.videoCodec && config.videoCodec !== 'auto') ? config.videoCodec : this.getVideoCodec();
+        if (config.videoCodec && config.videoCodec !== 'auto' && !this.isEncoderAvailable(codec)) {
+            throw new Error(`Requested video codec '${codec}' is not available in this ffmpeg build.`);
+        }
         command.videoCodec(codec)
             .videoBitrate(config.videoBitrate)
             .size(config.resolution)

@@ -66,7 +66,10 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
         }
 
         try {
-            const outPath = recordingPath || `recording-${Date.now()}.mp4`;
+            // Determine extension: respect explicit setting first, otherwise system default
+            const formatSetting = settings.recordingFormat || 'auto';
+            const ext = formatSetting === 'auto' ? (systemInfo?.platform === 'linux' ? 'webm' : 'mp4') : formatSetting;
+            const outPath = recordingPath || `recording-${Date.now()}.${ext}`;
             // remember the path we're writing to so we can preview it after stop
             setRecordingPath(outPath);
             const result = await window.electronAPI.startRecording({
@@ -97,7 +100,16 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
                 setStreamStatus({ isRecording: false });
                 // Recording finished - expose preview
                 const saved = recordingPath || undefined;
-                if (saved) setLastRecordingPath(saved);
+                if (saved) {
+                    setLastRecordingPath(saved);
+                    // Persist last recording directory
+                    try {
+                        const dir = saved.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
+                        if (dir) await window.electronAPI.setSetting('lastRecordingDir', dir);
+                    } catch (err) {
+                        console.error('Failed to persist lastRecordingDir', err);
+                    }
+                }
             }
         } catch (error: any) {
             alert(`Error: ${error.message}`);
@@ -106,7 +118,19 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
 
     const handleChoosePath = async () => {
         try {
-            const res = await window.electronAPI.showSaveDialog(`recording-${Date.now()}.mp4`);
+            const formatSetting = settings.recordingFormat || 'auto';
+            const ext = formatSetting === 'auto' ? (systemInfo?.platform === 'linux' ? 'webm' : 'mp4') : formatSetting;
+            // Try to use last saved directory from settings as the default path
+            let defaultDir = undefined as string | undefined;
+            try {
+                const ld = await window.electronAPI.getSetting('lastRecordingDir');
+                if (ld) defaultDir = ld;
+            } catch (err) {
+                // ignore
+            }
+            const defaultName = `recording-${Date.now()}.${ext}`;
+            const defaultPath = defaultDir ? `${defaultDir}/${defaultName}` : defaultName;
+            const res = await window.electronAPI.showSaveDialog(defaultPath);
             if (!res.canceled && res.filePath) {
                 setRecordingPath(res.filePath);
             }

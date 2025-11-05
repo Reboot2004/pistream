@@ -145,6 +145,8 @@ function setupIpcHandlers() {
         return { success: true };
     });
 
+    // Expose lastRecordingDir for convenience (reads/writes handled via settings handlers)
+
     ipcMain.handle('settings:get-all', async () => {
         return store.store;
     });

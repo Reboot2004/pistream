@@ -19,6 +19,8 @@ export interface StreamSettings {
     videoBitrate: string;
     audioBitrate: string;
     videoCodec?: string;
+    // recordingFormat: 'auto' picks platform default (webm on Linux), otherwise 'mp4' or 'webm'
+    recordingFormat?: 'auto' | 'mp4' | 'webm';
 }
 
 interface StreamStore {
@@ -45,6 +47,7 @@ const defaultSettings: StreamSettings = {
     videoBitrate: '2500k',
     audioBitrate: '128k',
     videoCodec: 'auto',
+    recordingFormat: 'auto',
 };
 
 export const useStreamStore = create<StreamStore>((set) => ({

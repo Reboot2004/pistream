@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // System info
     getSystemInfo: () => ipcRenderer.invoke('system:info'),
+    // Dialogs
+    showSaveDialog: (defaultPath?: string) => ipcRenderer.invoke('dialog:save-file', defaultPath),
 });
 
 // Type definitions for TypeScript
@@ -42,6 +44,7 @@ export interface ElectronAPI {
     setSetting: (key: string, value: any) => Promise<{ success: boolean }>;
     getAllSettings: () => Promise<any>;
     getSystemInfo: () => Promise<any>;
+    showSaveDialog: (defaultPath?: string) => Promise<{ canceled: boolean; filePath?: string | undefined }>;
 }
 
 declare global {

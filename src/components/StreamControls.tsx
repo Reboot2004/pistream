@@ -10,6 +10,8 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
     const { status, settings, setStreamStatus } = useStreamStore();
     const { scenes, activeSceneId } = useSceneStore();
     const [isStarting, setIsStarting] = useState(false);
+    const [recordingPath, setRecordingPath] = useState<string | undefined>(undefined);
+    const [lastRecordingPath, setLastRecordingPath] = useState<string | undefined>(undefined);
 
     const activeScene = scenes.find(s => s.id === activeSceneId);
 
@@ -64,14 +66,18 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
         }
 
         try {
+            const outPath = recordingPath || `recording-${Date.now()}.mp4`;
+            // remember the path we're writing to so we can preview it after stop
+            setRecordingPath(outPath);
             const result = await window.electronAPI.startRecording({
                 display: displaySource.settings.display,
                 audioDevice: activeScene?.sources.find(s => s.type === 'audio' && s.enabled)?.settings.device,
-                outputPath: `recording-${Date.now()}.mp4`,
+                outputPath: outPath,
                 resolution: settings.resolution,
                 fps: settings.fps,
                 videoBitrate: settings.videoBitrate,
                 audioBitrate: settings.audioBitrate,
+                videoCodec: settings.videoCodec,
             });
 
             if (result.success) {
@@ -89,9 +95,23 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
             const result = await window.electronAPI.stopRecording();
             if (result.success) {
                 setStreamStatus({ isRecording: false });
+                // Recording finished - expose preview
+                const saved = recordingPath || undefined;
+                if (saved) setLastRecordingPath(saved);
             }
         } catch (error: any) {
             alert(`Error: ${error.message}`);
+        }
+    };
+
+    const handleChoosePath = async () => {
+        try {
+            const res = await window.electronAPI.showSaveDialog(`recording-${Date.now()}.mp4`);
+            if (!res.canceled && res.filePath) {
+                setRecordingPath(res.filePath);
+            }
+        } catch (err: any) {
+            console.error('Save dialog failed', err);
         }
     };
 
@@ -129,6 +149,18 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
 
                 {/* Right side - Controls */}
                 <div className="flex items-center space-x-3">
+                    {/* Recording path chooser and preview */}
+                    <div className="flex items-center space-x-2 mr-4">
+                        <button
+                            onClick={handleChoosePath}
+                            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+                        >
+                            Choose Path
+                        </button>
+                        <div className="text-xs text-gray-400 max-w-xs truncate" title={recordingPath}>
+                            {recordingPath ?? 'Using default name'}
+                        </div>
+                    </div>
                     {/* Start/Stop Streaming */}
                     {!status.isStreaming ? (
                         <button
@@ -177,6 +209,17 @@ export default function StreamControls({ systemInfo }: StreamControlsProps) {
                     )}
                 </div>
             </div>
+            {/* Recording preview */}
+            {lastRecordingPath && (
+                <div className="mt-4">
+                    <h4 className="text-sm text-gray-300 mb-2">Last Recording Preview</h4>
+                    <video
+                        className="w-full max-h-64 bg-black"
+                        controls
+                        src={`file://${lastRecordingPath}`}
+                    />
+                </div>
+            )}
         </div>
     );
 }

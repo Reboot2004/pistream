@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { FFmpegService } from './services/FFmpegService';
 import { StreamManager } from './services/StreamManager';
@@ -147,6 +147,18 @@ function setupIpcHandlers() {
 
     ipcMain.handle('settings:get-all', async () => {
         return store.store;
+    });
+
+    // Dialogs
+    ipcMain.handle('dialog:save-file', async (_, defaultPath?: string) => {
+        const win = mainWindow as BrowserWindow | null;
+        const opts: Electron.SaveDialogOptions = {
+            title: 'Save recording',
+            defaultPath: defaultPath || `recording-${Date.now()}.mp4`,
+            filters: [{ name: 'MP4 Video', extensions: ['mp4'] }],
+        };
+        const result = await dialog.showSaveDialog(opts);
+        return { canceled: result.canceled, filePath: result.filePath };
     });
 
     // System info
